@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.10.0/p5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.10.0/addons/p5.sound.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <meta charset="utf-8" />
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <main>
+    </main>
+    <script>
+        let angleSlider, velocitySlider, heightSlider, forceSlider;
+        let ball;
+        const g = 9.81;
+        const startX = 50, startY = 550;
+        let previousAngle, previousVelocity, previousHeight, previousForce;
+        let timeOfFlight, maxHeight, range;
+        let trajectoryPoints = [];
+        let isMoving = false;
+        let stars = [];
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+
+            // Generate stars for the background
+            for (let i = 0; i < 100; i++) {
+                stars.push({ x: random(width), y: random(height / 2) });
+            }
+
+            // Create sliders
+            angleSlider = createSlider(0, 90, 45);
+            angleSlider.position(width - 180, 50);
+
+            velocitySlider = createSlider(0, 100, 50);
+            velocitySlider.position(width - 180, 100);
+
+            heightSlider = createSlider(0, 300, 100);
+            heightSlider.position(width - 180, 150);
+
+            forceSlider = createSlider(-100, 100, 0);
+            forceSlider.position(width - 180, 200);
+
+            initializeBall();
+
+            previousAngle = angleSlider.value();
+            previousVelocity = velocitySlider.value();
+            previousHeight = heightSlider.value();
+            previousForce = forceSlider.value();
+
+            calculateTrajectory();
+        }
+
+        function initializeBall() {
+            ball = {
+                x: startX,
+                y: startY - heightSlider.value(),
+                vx: 0,
+                vy: 0,
+                ax: 0,
+                ay: g
+            };
+            trajectoryPoints = [];
+            isMoving = false;
+        }
+
+        function calculateTrajectory() {
+            let angle = radians(angleSlider.value());
+            let velocity = velocitySlider.value();
+            let initialHeight = heightSlider.value();
+            timeOfFlight = (velocity * sin(angle) + sqrt(pow(velocity * sin(angle), 2) + 2 * g * initialHeight)) / g;
+            maxHeight = initialHeight + (pow(velocity * sin(angle), 2)) / (2 * g);
+            range = (pow(velocity, 2) * sin(2 * angle)) / g * (1 + (velocity * sin(angle) / g) * timeOfFlight);
+        }
+
+        function draw() {
+            background(0);
+            drawStars();
+            drawAxes();
+
+            let angle = radians(angleSlider.value());
+            let velocity = velocitySlider.value();
+
+            // Check if slider values changed to recalculate trajectory
+            if (angleSlider.value() !== previousAngle || velocitySlider.value() !== previousVelocity || heightSlider.value() !== previousHeight || forceSlider.value() !== previousForce) {
+                initializeBall();
+                previousAngle = angleSlider.value();
+                previousVelocity = velocitySlider.value();
+                previousHeight = heightSlider.value();
+                previousForce = forceSlider.value();
+                calculateTrajectory();
+            }
+
+            fill(255);
+            text(`Angle: ${angleSlider.value()}°`, width - 160, 35);
+            text(`Velocity: ${velocitySlider.value()}`, width - 160, 85);
+            text(`Height: ${heightSlider.value()} m`, width - 160, 135);
+            text(`Additional Force: ${forceSlider.value()} N`, width - 160, 185);
+
+            let gap = 30;
+            text(`Time of Flight: ${timeOfFlight.toFixed(2)} s`, width - 160, 225 + gap);
+            text(`Max Height: ${maxHeight.toFixed(2)} m`, width - 160, 245 + gap);
+            text(`Range: ${range.toFixed(2)} m`, width - 160, 265 + gap);
+
+            if (!isMoving && ball.x === startX && ball.y === (startY - heightSlider.value())) {
+                ball.vx = velocity * cos(angle);
+                ball.vy = -velocity * sin(angle);
+                isMoving = true;
+            }
+
+            if (isMoving) {
+                trajectoryPoints.push({ x: ball.x, y: ball.y });
+                ball.x += ball.vx * 0.1;
+
+                // Apply additional force
+                let additionalForce = forceSlider.value();
+                let forceDirection = angle;
+                let forceX = additionalForce * cos(forceDirection) * 0.1;
+                let forceY = additionalForce * sin(forceDirection) * 0.1;
+
+                ball.vx += forceX;
+                ball.vy += (ball.ay * 0.1 - forceY);
+
+                ball.y += ball.vy * 0.1;
+
+                let colorValue = map(ball.y, startY, startY - maxHeight, 0, 255);
+                fill(colorValue, 100, 255 - colorValue);
+                stroke(0);
+                ellipse(ball.x, ball.y, 20, 20);
+
+                // Stop ball if it reaches the ground
+                if (ball.y > startY) {
+                    ball.y = startY;
+                    ball.vx = 0;
+                    ball.vy = 0;
+                    isMoving = false;
+                }
+            }
+
+            // Draw trajectory path
+            noFill();
+            stroke(150);
+            beginShape();
+            for (let point of trajectoryPoints) {
+                vertex(point.x, point.y);
+            }
+            endShape();
+        }
+
+        function drawAxes() {
+            stroke(255);
+            line(0, startY, width, startY);
+            line(startX, 0, startX, height);
+            fill(255);
+            text('X', width - 20, startY - 10);
+            text('Y', startX - 20, 20);
+        }
+
+        function drawStars() {
+            fill(255);
+            noStroke();
+            for (let star of stars) {
+                ellipse(star.x, star.y, 2, 2);
+            }
+        }
+    </script>
+</body>
+</html>
